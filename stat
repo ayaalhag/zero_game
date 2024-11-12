@@ -1,0 +1,12 @@
+def jj (level):
+    stat=[]
+    rows = len(level)
+    cols = len(level[0])
+    for i in range(rows):
+        for j in range(cols):  
+            if level[i][j] % 2 == 1:
+                 stat.append ((i,j))
+    print (stat)
+    
+    
+   
