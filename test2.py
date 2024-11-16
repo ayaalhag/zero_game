@@ -1,19 +1,15 @@
 import tkinter as tk
+from collections import deque
 import copy
 class state:
-    def __init__(self,level):
+    def __init__(self, level):
         self.history = [] 
-        self.naw_level=copy.deepcopy(level)
+        self.naw_level = copy.deepcopy(level)
     
-    def update_and_store_level(self,level_copy, canvas,string):
+    def update_and_store_level(self,level_copy, canvas,string,delay=5000):
         self.naw_level = level_copy 
-        self.history.append(copy.deepcopy(self.naw_level)) 
-        self.draw_Squares(self.naw_level, canvas)
-        print (string)
-        for row in self.naw_level:
-            print(row)
-        print("-" * 20)  
-
+        self.history.append(copy.deepcopy(self.naw_level))
+  
     def represent_Squares(self, level):
         rows = len(level)
         cols = len(level[0])
@@ -113,7 +109,8 @@ class state:
                  level[row_level][new_col]=0.0
                 else:
                  level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
-        self.update_and_store_level(level,canvas,"right")
+        return level
+       # self.update_and_store_level(level,canvas,"right")
 
     def move_left(self, canvas):
         level = copy.deepcopy(self.naw_level)
@@ -134,8 +131,9 @@ class state:
                 level[row_level][new_col]=0.0
             else:
                 level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
-        self.update_and_store_level(level,canvas, "left")
-
+        return level
+        #self.update_and_store_level(level,canvas, "left")
+  
     def move_up(self, canvas):
         level= copy.deepcopy(self.naw_level)
         move=self.Moving_stones(level)
@@ -155,7 +153,8 @@ class state:
                 level[new_row][col_level]=0.0
             else:
                 level[new_row][col_level] =  level[new_row][col_level]+int(old_cell)
-        self.update_and_store_level(level, canvas,"up")
+        return level
+        #self.update_and_store_level(level, canvas,"up")
 
     def move_down(self, canvas):
         level = copy.deepcopy(self.naw_level)
@@ -177,5 +176,140 @@ class state:
                 level[new_row][col_level]=0.0
             else:
                 level[new_row][col_level] =  level[new_row][col_level]+int(old_cell)
-        self.update_and_store_level(level, canvas,"down")
-        
+        return level
+        #self.update_and_store_level(level, canvas,"down")
+
+    def get_possible_moves(self):
+        moves = []
+        moveable_stones = self.Moving_stones(self.naw_level)
+        for stone in moveable_stones:
+            row, col = stone
+            if col + 1 < len(self.naw_level[0]) and not self.is_blok(self.naw_level, row, col + 1):
+                moves.append(("right", row, col))
+            if col - 1 >= 0 and not self.is_blok(self.naw_level, row, col - 1):
+                moves.append(("left", row, col))
+            if row - 1 >= 0 and not self.is_blok(self.naw_level, row - 1, col):
+                moves.append(("up", row, col))
+            if row + 1 < len(self.naw_level) and not self.is_blok(self.naw_level, row + 1, col):
+                moves.append(("down", row, col))
+        return moves
+   
+    def bfs(self,canvas):
+        queue = [] 
+        paths=[]
+        list_paths=[copy.deepcopy(self.naw_level)]
+        next_moves = self.get_possible_moves()
+        grouped_moves = {"right": [], "left": [], "up": [], "down": []}        
+        for move in next_moves:
+            direction, row, col = move
+            grouped_moves[direction].append((row, col))
+        added_directions=[]            
+        for direction, positions in grouped_moves.items():
+            for position in positions:
+                if direction not in added_directions:
+                    queue.append(direction)
+                    added_directions.append(direction)
+        visited = []
+        visited_count = 0             
+        while queue:
+            visited.append(copy.deepcopy(self.naw_level))        
+            if not self.Moving_stones(self.naw_level):
+                return(paths,self.make_move(canvas,list_paths,1000))
+            else: 
+                path = queue.pop(0)
+                visited_count += 1 
+                if path == "right":
+                   nextlevel= self.move_right(canvas)
+                if path == "left":
+                    nextlevel=self.move_left(canvas)
+                if path == "up":
+                    nextlevel=self.move_up(canvas)
+                if path == "down":
+                    nextlevel=self.move_down(canvas)
+                if nextlevel in visited:
+                    continue
+                else:
+                    paths.append(path)
+                    list_paths.append(copy.deepcopy(nextlevel))
+                    self.update_and_store_level(nextlevel, canvas, "new_level", delay=5000)
+                    next_moves = self.get_possible_moves()
+                    grouped_moves = {"right": [], "left": [], "up": [], "down": []}        
+                    for move in next_moves:
+                        direction, row, col = move
+                        grouped_moves[direction].append((row, col))
+                    added_directions=[]            
+                    for direction, positions in grouped_moves.items():
+                        for position in positions:
+                            if direction not in added_directions:
+                                queue.append(direction)
+                                added_directions.append(direction)
+
+    def dfs(self,canvas):
+        stack = [] 
+        paths=[]
+        list_paths=[copy.deepcopy(self.naw_level)]
+        next_moves = self.get_possible_moves()
+        grouped_moves = {"right": [], "left": [], "up": [], "down": []}        
+        for move in next_moves:
+            direction, row, col = move
+            grouped_moves[direction].append((row, col))
+        added_directions=[]            
+        for direction, positions in grouped_moves.items():
+            for position in positions:
+                if direction not in added_directions:
+                    stack.append(direction)
+                    added_directions.append(direction)
+        visited = []
+        visited_count = 0             
+        while stack:
+            visited.append(copy.deepcopy(self.naw_level))        
+            if not self.Moving_stones(self.naw_level):
+                return(paths,self.make_move(canvas,list_paths,1000))
+            else: 
+                path = stack.pop(0)
+                visited_count += 1 
+                if path == "right":
+                   nextlevel= self.move_right(canvas)
+                if path == "left":
+                    nextlevel=self.move_left(canvas)
+                if path == "up":
+                    nextlevel=self.move_up(canvas)
+                if path == "down":
+                    nextlevel=self.move_down(canvas)
+                if nextlevel in visited:
+                    continue
+                else:
+                    paths.append(path)
+                    list_paths.append(copy.deepcopy(nextlevel))
+                    self.update_and_store_level(nextlevel, canvas, "new_level", delay=5000)
+                    next_moves = self.get_possible_moves()
+                    grouped_moves = {"right": [], "left": [], "up": [], "down": []}        
+                    for move in next_moves:
+                        direction, row, col = move
+                        grouped_moves[direction].append((row, col))
+                    added_directions=[]            
+                    for direction, positions in grouped_moves.items():
+                        for position in positions:
+                            if direction not in added_directions:
+                                stack.append(direction)
+                                added_directions.append(direction)
+
+    def make_move(self, canvas, list_path, delay=500,i=0):
+            if i >= len(list_path):
+                print("Completed drawing all states!")
+                return
+            canvas.delete("all") 
+            self.draw_Squares(list_path[i], canvas)
+            for row in list_path[i]:
+                print(row)
+            print("-" * 20)
+            canvas.after(delay, lambda: self.make_move(canvas, list_path, delay, i + 1))
+
+
+    def solve(self, canvas, algorithm="bfs"):
+        if algorithm.lower() == "bfs":
+           return( self.bfs(canvas))
+        elif algorithm.lower() == "dfs":
+            return( self.dfs(canvas))
+        else:
+            print("خوارزمية غير مدعومة")
