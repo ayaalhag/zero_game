@@ -12,11 +12,11 @@ def main():
     stat = state(level)
     stat.draw_Squares(level, canvas)
 
-    algorithm_choice = tk.StringVar(value="BFS") 
-    tk.Radiobutton(root, text="BFS", variable=algorithm_choice, value="BFS").pack(side="left")
-    tk.Radiobutton(root, text="DFS", variable=algorithm_choice, value="DFS").pack(side="left")
+    # algorithm_choice = tk.StringVar(value="BFS") 
+    # tk.Radiobutton(root, text="BFS", variable=algorithm_choice, value="BFS").pack(side="left")
+    # tk.Radiobutton(root, text="DFS", variable=algorithm_choice, value="DFS").pack(side="left")
      
-    solve_button = tk.Button(root, text="حل تلقائي", command=lambda: print(stat.solve(canvas, algorithm_choice.get())))
+    solve_button = tk.Button(root, text="حل تلقائي", command=lambda: print(stat.solve_uniform_cost(canvas)))
     solve_button.pack()
 
     root.mainloop()

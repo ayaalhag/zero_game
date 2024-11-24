@@ -75,11 +75,6 @@ class state:
                     Moving.append ((i,j))
         return Moving
     
-    def chek_end(self,level):
-       Moving_stones=self.Moving_stones(level)
-       if not Moving_stones:
-           print('the end')
-    
     def is_blok(self,level, row, col):
         if (round((level[row][col])-int(level[row][col]),1))== 0.1: 
             return True
@@ -305,11 +300,54 @@ class state:
             print("-" * 20)
             canvas.after(delay, lambda: self.make_move(canvas, list_path, delay, i + 1))
 
+    # def solve(self, canvas, algorithm="bfs"):
+    #     if algorithm.lower() == "bfs":
+    #        return( self.bfs(canvas))
+    #     elif algorithm.lower() == "dfs":
+    #         return( self.dfs(canvas))
+    #     else:
+    #         print("خوارزمية غير مدعومة")
 
-    def solve(self, canvas, algorithm="bfs"):
-        if algorithm.lower() == "bfs":
-           return( self.bfs(canvas))
-        elif algorithm.lower() == "dfs":
-            return( self.dfs(canvas))
-        else:
-            print("خوارزمية غير مدعومة")
+    def solve_uniform_cost(self, canvas):
+        queue = []
+        paths = []
+        list_paths = [copy.deepcopy(self.naw_level)]
+        start_cost = 0
+        next_moves = self.get_possible_moves()
+        for move in next_moves:
+            queue.append(move)
+
+        visited = []
+        visited_count = 0
+
+        while queue:
+            visited.append(copy.deepcopy(self.naw_level))
+            if not self.Moving_stones(self.naw_level):
+                return (paths, self.make_move(canvas, list_paths, 1000))
+            else:
+                queue.sort(key=lambda x: x[3]) 
+                print(queue)
+                move = queue.pop(0)
+                current_cost = move[3]
+                visited_count += 1
+
+                direction, _, _ = move
+                if direction == "right":
+                    next_level = self.move_right(canvas)
+                elif direction == "left":
+                    next_level = self.move_left(canvas)
+                elif direction == "up":
+                    next_level = self.move_up(canvas)
+                elif direction == "down":
+                    next_level = self.move_down(canvas)
+
+                if next_level in visited:
+                    continue
+                else:
+                    paths.append(direction)
+                    start_cost =+1
+                    list_paths.append(copy.deepcopy(next_level))
+                    self.update_and_store_level(next_level, canvas, "new_level", delay=5000)
+                    next_moves = self.get_possible_moves(current_cost)
+                    for move in next_moves:
+                        queue.append(move)
