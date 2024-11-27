@@ -84,9 +84,11 @@ class state:
       
 #////////////////توابع الحركة//////////////////////
     def move_right(self,canvas):
+        print('rt')
         level = copy.deepcopy(self.naw_level)
         move=self.Moving_stones(level)
         Nrow_move = len(move)
+        total_weight = 0
         for r in range(Nrow_move):
                 Ncols_level=len(level[0])
                 col_level=move[r][1]
@@ -99,12 +101,13 @@ class state:
                         break 
                     else:
                         new_col = j 
+                        total_weight += abs(new_col - col_level)
                 level[row_level][col_level] = round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
                 if(self.on_gool(level,row_level,new_col,old_cell)):
                  level[row_level][new_col]=0.0
                 else:
                  level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
-        return level
+        return total_weight,level
        # self.update_and_store_level(level,canvas,"right")
 
     def move_left(self, canvas):
@@ -311,7 +314,7 @@ class state:
     def solve_uniform_cost(self, canvas):
         queue = []
         paths = []
-        list_paths = [copy.deepcopy(self.naw_level)]
+        list_opject = [copy.deepcopy(self.naw_level)]
         start_cost = 0
         next_moves = self.get_possible_moves()
         for move in next_moves:
@@ -325,13 +328,14 @@ class state:
             if not self.Moving_stones(self.naw_level):
                 return (paths, self.make_move(canvas, list_paths, 1000))
             else:
-                queue.sort(key=lambda x: x[3]) 
+                queue.sort(key=lambda x: x[-1]) 
                 print(queue)
                 move = queue.pop(0)
-                current_cost = move[3]
+                #current_cost = move[3]
                 visited_count += 1
-
+                print(move)
                 direction, _, _ = move
+                print(direction)
                 if direction == "right":
                     next_level = self.move_right(canvas)
                 elif direction == "left":
