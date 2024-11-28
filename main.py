@@ -19,7 +19,7 @@ def main():
     root.bind("<Right>", lambda event: print(stat.move_right( canvas)))
     root.bind("<Up>", lambda event: print(stat.move_up(canvas)))
     root.bind("<Down>", lambda event: print(stat.move_down( canvas)))
-    solve_button = tk.Button(root, text="حل تلقائي", command=lambda: print(stat.UCS(canvas)))
+    solve_button = tk.Button(root, text="حل تلقائي", command=lambda: print(stat.dfs_recursive(canvas)))
     solve_button.pack()
 
     root.mainloop()

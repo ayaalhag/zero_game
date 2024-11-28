@@ -63,30 +63,37 @@ class state:
                 )        
   
     def Moving_stones(self, level):
+        if not isinstance(level, list) or not all(isinstance(row, list) for row in level):
+            raise ValueError(f"Invalid level structure: {type(level)}")
         Moving = []
         rows = len(level)
         cols = len(level[0])
         for i in range(rows):
-            for j in range(cols):  
-                if int(level[i][j]) != 1 and int(level[i][j]) != 0:
+            for j in range(cols):
+                cell = level[i][j]
+                if isinstance(cell, list):
+                    cell = cell[0] if len(cell) > 0 else 0  # إذا كانت قائمة، استخدم العنصر الأول
+                if not isinstance(cell, (int, float)):
+                    raise ValueError(f"Unexpected type in level[{i}][{j}]: {type(cell)}")
+                if int(cell) != 1 and int(cell) != 0:
                     Moving.append((i, j))
         return Moving
-    
+
     def get_possible_moves(self):
         moves = []
         moveable_stones = self.Moving_stones(self.now_level)
         for stone in moveable_stones:
             row, col = stone
             if col + 1 < len(self.now_level[0]) and not self.is_blok(self.now_level, row, col + 1):
-                moves.append(("right"))
+                moves.append(("right", row, col))
             if col - 1 >= 0 and not self.is_blok(self.now_level, row, col - 1):
-                moves.append(("left"))
+                moves.append(("left", row, col))
             if row - 1 >= 0 and not self.is_blok(self.now_level, row - 1, col):
-                moves.append(("up"))
+                moves.append(("up", row, col))
             if row + 1 < len(self.now_level) and not self.is_blok(self.now_level, row + 1, col):
-                moves.append(("down"))
+                moves.append(("down", row, col))
         return moves
-   
+  
     def is_blok(self, level, row, col):
         if (round((level[row][col]) - int(level[row][col]), 1)) == 0.1: 
             return True
@@ -124,7 +131,7 @@ class state:
                 else:
                  level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
         #self.update_and_store_level(level)
-        return level,total_weight
+        return level
     
     def move_left(self, canvas):
         level = copy.deepcopy(self.now_level)
@@ -148,7 +155,7 @@ class state:
             else:
                 level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
         # self.update_and_store_level(level)
-        return level,total_weight
+        return level
     
     def move_up(self, canvas):
         level= copy.deepcopy(self.now_level)
@@ -172,7 +179,7 @@ class state:
             else:
                 level[new_row][col_level] =  level[new_row][col_level]+int(old_cell)
         # self.update_and_store_level(level)
-        return level,total_weight
+        return level
     
     def move_down(self, canvas):
         level = copy.deepcopy(self.now_level)
@@ -197,10 +204,11 @@ class state:
             else:
                 level[new_row][col_level] =  level[new_row][col_level]+int(old_cell)
         # self.update_and_store_level(level)
-        return level,total_weight
+        return level
     
-    def weight(self,canvas,Pq,old_weight):
+    def weight(self,canvas,old_weight):
         levels=[]
+        next_moves=[]
         moves=self.get_possible_moves()
         for move in moves:
             if move == "right":
@@ -212,10 +220,10 @@ class state:
             elif move == "down":
                 next_level, weight = self.move_down(canvas)
             element_q=f"{move} {weight+ old_weight}"
-            Pq.append(element_q)
+            next_moves.append(element_q)
             levels.append((element_q, next_level))
         
-        return(Pq,levels)
+        return(next_moves,levels)
     
     def make_move(self, canvas, list_path,visited, delay=500,i=0):
             if i >= len(visited):
@@ -227,31 +235,119 @@ class state:
                 print(row)
             print("-" * 20)
             canvas.after(delay, lambda: self.make_move(canvas, list_path, visited,delay,i + 1))
-            
+    
+    def path_cost(path):
+        total_cost=0
+        for(move,cost) in path :
+            total_cost+=cost
+        return total_cost
+        
+    def sort(self,Pq):
+        sorted_list = []        
+        for sublist in Pq:
+            sum_value = sum(int(value) for direction, value in sublist)            
+            sorted_list.append((sum_value, sublist))        
+        for i in range(len(sorted_list)):
+            for j in range(i + 1, len(sorted_list)):
+                if sorted_list[i][0] > sorted_list[j][0]:
+                    sorted_list[i], sorted_list[j] = sorted_list[j], sorted_list[i]        
+        return [sublist for _, sublist in sorted_list]
+       
     def UCS(self, canvas): 
+        visited = []
+        visited.append(copy.deepcopy(self.now_level)) 
         Pq = [] 
         path=[]
-        visited = [copy.deepcopy(self.now_level)]        
         weight=0   
-        Pq,levels=self.weight(canvas,Pq,weight)
-        list_opject=[state(self.now_level)]
+        Pq_start,levels=self.weight(canvas,weight)
+        move_p=[]
+        for start in Pq_start:
+            move_start = start.split()[0]
+            move_weight = start.split()[1]
+            move_p = [(move_start, move_weight)]  
+            Pq.append(move_p.copy())
         count=0
         while Pq:
             count+=1
+            print(count)
             if not self.Moving_stones(self.now_level):
                 return(path, self.make_move(canvas, path,visited, 1000))
-            Pq=sorted(Pq, key=lambda x: int(x.split()[1]))
-            pop=Pq.pop(0).split()
-            weight=int(pop[1])          
+            Pq = self.sort(Pq)           
+            pop=Pq.pop(0)
+            action, weight = pop[0]  
+            weight = int(weight)   
             for move, level in levels:
-                if move.split()[0] ==pop[0]:
+                if move.split()[0] ==action:
                     next_level = level
                     break
             if next_level in visited:
                 continue
-            path.append(pop)
-            self.update_and_store_level(next_level)                       
-            visited.append(copy.deepcopy(self.now_level))
-            opject=state(next_level)
-            t,levels=opject.weight(canvas,Pq,weight)
-        return "not found solution"
+            visited.append(copy.deepcopy(self.now_level))   
+            path.append(pop[0])
+            self.update_and_store_level(next_level) 
+            next_moves,levels=self.weight(canvas,weight)
+            print('pq b',Pq)
+            for next_move in next_moves:
+                new_path=path.copy()
+                new_path.append((next_move.split()[0],next_move.split()[1]))
+                Pq.append(new_path)
+            print('pq a',Pq)
+            print('-'*20)
+        return "not found solution",path
+
+    def dfs_recursive(self, canvas, paths=None, visited=None, list_paths=None):
+        print('1')
+        if paths is None:
+            paths = []
+        if visited is None:
+            visited = [copy.deepcopy(self.now_level)]
+        if list_paths is None:
+            list_paths = [copy.deepcopy(self.now_level)] 
+        print('2')
+        print(self.Moving_stones(self.now_level))         
+        if not self.Moving_stones(self.now_level):
+            return paths, self.make_move(canvas, list_paths, 1000)
+        print('3')
+        if not self.Moving_stones(self.now_level):
+            return paths, self.make_move(canvas, list_paths, 1000)
+        print('4')
+        next_moves = self.get_possible_moves()
+        grouped_moves = {"right": [], "left": [], "up": [], "down": []}        
+        for move in next_moves:
+            direction, row, col = move  # الآن يتم فك القيم الثلاثة بشكل صحيح
+            grouped_moves[direction].append((row, col))
+
+        print('5')
+        for direction, positions in grouped_moves.items():
+            if direction in paths: 
+                continue
+ 
+            if direction == "right":
+                next_level = self.move_right(canvas)
+            elif direction == "left":
+                next_level = self.move_left(canvas)
+            elif direction == "up":
+                next_level = self.move_up(canvas)
+            elif direction == "down":
+                next_level = self.move_down(canvas)
+            else:
+                continue
+            print(f"Current level type: {type(self.now_level)}")
+            if next_level in visited:
+                continue
+            
+            paths.append(direction)
+            list_paths.append(copy.deepcopy(next_level))
+            visited.append(copy.deepcopy(next_level))
+            
+            self.update_and_store_level(next_level) 
+            for n in self.now_level:
+                print(n)
+            print('-'*20)           
+            result = self.dfs_recursive(canvas, paths, visited, next_level)
+            if result: 
+                return result
+            paths.pop()
+            list_paths.pop()
+        
+        return None
