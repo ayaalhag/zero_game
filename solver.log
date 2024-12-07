@@ -1,0 +1,5 @@
+2024-12-06 21:44:00,690 - INFO - Algorithm: BFS | Nodes Visited: 298 | Path Length: 45 | Time: 0.7510s | Memory: 571.16 KB
+2024-12-06 21:53:43,765 - INFO - Algorithm: BFS | Nodes Visited: 298 | Path Length: 45 | Time: 0.7885s | Memory: 573.09 KB
+2024-12-06 21:53:48,285 - INFO - Algorithm: BFS | Nodes Visited: 268 | Path Length: 110 | Time: 0.3703s | Memory: 852.20 KB
+2024-12-06 21:53:51,431 - INFO - Algorithm: BFS | Nodes Visited: 299 | Path Length: 45 | Time: 0.7900s | Memory: 585.39 KB
+2024-12-06 21:54:11,792 - INFO - Algorithm: BFS | Nodes Visited: 295 | Path Length: 45 | Time: 17.4050s | Memory: 559.48 KB

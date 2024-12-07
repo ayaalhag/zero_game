@@ -1,13 +1,19 @@
-import tkinter as tk
-from collections import deque
-import heapq
 import copy
+import heapq
+from colorama import Fore,Back,Style,init
+import logging
+import time
+import tracemalloc
 
+logging.basicConfig(
+    filename="solver.log", 
+    level=logging.INFO,    
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 class state:
     def __init__(self, level):
-        self.history = []
         self.now_level = copy.deepcopy(level)
-  
+        
     def represent_Squares(self, level):
         rows = len(level)
         cols = len(level[0])
@@ -26,6 +32,10 @@ class state:
                     color = "blue"
                 elif int(level[i][j]) == 4:
                     color = "red"
+                elif int(level[i][j]) == 5:
+                    color="pink"
+                elif int(level[i][j]) == 6:
+                    color="yellow"
                 color_arry[i][j] = color
                 # لون الهدف
                 decimal_part = round((level[i][j] - int(level[i][j])), 1)
@@ -37,17 +47,17 @@ class state:
                     border = "blue"
                 elif decimal_part == 0.4:
                     border = "red"
+                elif decimal_part==0.5:
+                    border="pink"
+                elif decimal_part==0.6:
+                    border="yellow"
+                elif decimal_part== 0.8:
+                    border ="gray"
                 else:
                     border = color
                 border_arry[i][j] = border
         return color_arry, border_arry
-    
-    def update_and_store_level(self, level_copy):
-        if level_copy is None:
-            print("Cannot update with a None level_copy")
-        self.now_level = level_copy
-        self.history.append(copy.deepcopy(self.now_level))
-        
+       
     def draw_Squares(self, level, canvas):
         color_arry = self.represent_Squares(level)[0]
         border_arry = self.represent_Squares(level)[1]
@@ -56,15 +66,154 @@ class state:
         cell_size = 50
         for i in range(rows):
             for j in range(cols):
+                x0 = j * cell_size
+                y0 = i * cell_size
+                x1 = (j + 1) * cell_size
+                y1 = (i + 1) * cell_size
+                
+                # رسم المستطيل مع الإطار واللون الداخلي
                 canvas.create_rectangle(
-                    j * cell_size, i * cell_size,
-                    (j + 1) * cell_size, (i + 1) * cell_size,
+                    x0, y0, x1, y1,
                     outline=border_arry[i][j], fill=color_arry[i][j], width=3
-                )        
-  
+                )
+                
+    def move_right(self):
+        cost=0
+        level = copy.deepcopy(self.now_level)
+        move=self.Moving_stones(level)
+        Nrow_move = len(move)
+        for r in range(Nrow_move):
+                Ncols_level=len(level[0])
+                col_level=move[r][1]
+                row_level=move[r][0]
+                new_col =col_level 
+                old_cell = int(level[row_level][col_level])
+                #هي بتمشي ع مصفوفة level
+                for j in range(col_level+1 , Ncols_level):
+                    if self.is_blok(level, row_level, j): 
+                        break 
+                    elif self.on_gool(level, row_level, j, old_cell):
+                        level[row_level][j] = 0.0
+                        level[row_level][col_level] =round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
+                        cost+=abs(col_level-new_col)
+                        object=state(level)
+                        return object,cost
+                    elif self.is_grey(level,row_level,j):
+                        level[row_level][col_level]=round(level[row_level][col_level] - old_cell, 1)
+                        level[row_level][j]=old_cell+(old_cell/10) 
+                        cost+=abs(new_col-col_level)
+                        object=state(level)
+                        return object ,cost   
+                    else:
+                        new_col = j 
+                level[row_level][col_level] = round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
+                level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
+                cost+=abs(col_level-new_col)
+        object=state(level)
+        return object,cost
+    
+    def move_left(self):
+        cost=0
+        level = copy.deepcopy(self.now_level)
+        move=self.Moving_stones(level)
+        Nrow_move = len(move)
+        for r in range(Nrow_move):
+            row_level=move[r][0]
+            col_level=move[r][1]
+            new_col =col_level 
+            old_cell =int(level[row_level][col_level])
+            for j in range(col_level - 1, -1, -1):
+              if self.is_blok(level, row_level, j):
+                break
+              elif self.on_gool(level, row_level, j, old_cell):
+                level[row_level][j] = 0.0
+                level[row_level][col_level] =round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
+                cost+=abs(col_level-new_col)
+                object=state(level)
+                return object,cost
+              elif self.is_grey(level,row_level,j):
+                level[row_level][col_level]=round(level[row_level][col_level] - old_cell, 1)
+                level[row_level][j]=old_cell+(old_cell/10) 
+                cost+=abs(new_col-col_level)
+                object=state(level)
+                return object ,cost  
+              else:
+                new_col = j
+            level[row_level][col_level] = round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
+            level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
+            cost+=abs(col_level-new_col)
+        object=state(level)
+        return object,cost
+    
+    def move_up(self):
+        cost=0
+        level= copy.deepcopy(self.now_level)
+        move=self.Moving_stones(level)
+        Nrow_move = len(move)
+        for r in range(Nrow_move):
+            col_level=move[r][1]
+            row_level=move[r][0]
+            new_row = row_level
+            old_cell = int(level[row_level][col_level])
+            for i in range(row_level - 1, -1, -1):
+                if self.is_blok(level, i, col_level):
+                  break
+                elif self.on_gool(level, i, col_level, old_cell):
+                    level[i][col_level] = 0.0
+                    level[row_level][col_level] =round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
+                    cost+=abs(row_level-new_row)
+                    object=state(level)
+                    return object ,cost
+                elif self.is_grey(level,i,col_level):
+                    level[row_level][col_level]=round(level[row_level][col_level] - old_cell, 1)
+                    level[i][col_level]=old_cell+(old_cell/10) 
+                    cost+=abs(new_row-row_level)
+                    object=state(level)
+                    return object ,cost   
+                else:
+                  new_row = i
+            level[row_level][col_level] = round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
+            level[new_row][col_level] =  level[new_row][col_level]+int(old_cell)
+            cost+=abs(row_level-new_row)
+        object=state(level)
+        return object ,cost
+    
+    def move_down(self):
+        cost=0
+        level = copy.deepcopy(self.now_level)
+        move=self.Moving_stones(level)
+        Nrow_move = len(move)
+        for r in range(Nrow_move):
+            col_level=move[r][1]
+            row_level=move[r][0]
+            rows = len(level)
+            new_row = row_level
+            old_cell = int(level[row_level][col_level])
+            for i in range(row_level + 1, rows):
+            #   self.print_level(level)
+              if self.is_blok(level, i, col_level):
+                break
+              elif self.on_gool(level, i, col_level, old_cell):
+                level[i][col_level] = 0.0
+                level[row_level][col_level] =round(level[row_level][col_level] - old_cell, 1)
+                cost+=abs(new_row-row_level)
+                object=state(level)
+                return object ,cost
+              elif self.is_grey(level,i,col_level):
+                level[row_level][col_level]=round(level[row_level][col_level] - old_cell, 1)
+                level[i][col_level]=old_cell+(old_cell/10) 
+                cost+=abs(new_row-row_level)
+                object=state(level)
+                return object ,cost 
+              else:
+                new_row = i        
+            level[row_level][col_level] = abs (round(level[row_level][col_level] - old_cell, 1))
+            level[new_row][col_level] += old_cell
+            cost+=abs(new_row-row_level)
+        object=state(level)
+        return object ,cost
+      
     def Moving_stones(self, level):
-        if not isinstance(level, list) or not all(isinstance(row, list) for row in level):
-            raise ValueError(f"Invalid level structure: {type(level)}")
         Moving = []
         rows = len(level)
         cols = len(level[0])
@@ -79,20 +228,20 @@ class state:
                     Moving.append((i, j))
         return Moving
 
-    def get_possible_moves(self):
-        moves = []
-        moveable_stones = self.Moving_stones(self.now_level)
+    def get_possible_moves(self,level):
+        moves =set()
+        moveable_stones = self.Moving_stones(level)
         for stone in moveable_stones:
             row, col = stone
-            if col + 1 < len(self.now_level[0]) and not self.is_blok(self.now_level, row, col + 1):
-                moves.append(("right", row, col))
-            if col - 1 >= 0 and not self.is_blok(self.now_level, row, col - 1):
-                moves.append(("left", row, col))
-            if row - 1 >= 0 and not self.is_blok(self.now_level, row - 1, col):
-                moves.append(("up", row, col))
-            if row + 1 < len(self.now_level) and not self.is_blok(self.now_level, row + 1, col):
-                moves.append(("down", row, col))
-        return moves
+            if col + 1 < len(level[0]) and not self.is_blok(level, row, col + 1):
+                moves.add(("right"))
+            if col - 1 >= 0 and not self.is_blok(level, row, col - 1):
+                moves.add(("left"))
+            if row - 1 >= 0 and not self.is_blok(level, row - 1, col):
+                moves.add(("up"))
+            if row + 1 < len(level) and not self.is_blok(level, row + 1, col):
+                moves.add(("down"))
+        return list(moves)
   
     def is_blok(self, level, row, col):
         if (round((level[row][col]) - int(level[row][col]), 1)) == 0.1: 
@@ -107,247 +256,298 @@ class state:
         else:
             return False
 
-    def move_right(self,canvas):
-        level = copy.deepcopy(self.now_level)
-        move=self.Moving_stones(level)
-        Nrow_move = len(move)
-        total_weight = 0
-        for r in range(Nrow_move):
-                Ncols_level=len(level[0])
-                col_level=move[r][1]
-                row_level=move[r][0]
-                new_col =col_level 
-                old_cell = int(level[row_level][col_level])
-                #هي بتمشي ع مصفوفة level
-                for j in range(col_level + 1, Ncols_level):
-                    if self.is_blok(level, row_level, j): 
-                        break 
-                    else:
-                        new_col = j 
-                total_weight += abs(new_col - col_level)
-                level[row_level][col_level] = round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
-                if(self.on_gool(level,row_level,new_col,old_cell)):
-                 level[row_level][new_col]=0.0
+    def is_grey(self,level, row , col):
+        if ((level[row][col]) - int(level[row][col])==0.8):
+            return True
+        else:
+            return False
+            
+    def print_level(self,level):
+        rows = len(level)
+        cols = len(level[0])
+        for row in range(rows):
+            for col in range(cols):
+                if(level[row][col]==1.1):
+                    print(f"{'⬛️':^3}",end="  ")
+                elif(level[row][col]==0.0):
+                    print(f"{'⬜️':^3}",end="  ")
                 else:
-                 level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
-        #self.update_and_store_level(level)
-        return level
+                    print(f"{level[row][col]}",end="  ")
+            print()
+        print("-" * 20)
     
-    def move_left(self, canvas):
-        level = copy.deepcopy(self.now_level)
-        move=self.Moving_stones(level)
-        Nrow_move = len(move)
-        total_weight =0
-        for r in range(Nrow_move):
-            row_level=move[r][0]
-            col_level=move[r][1]
-            new_col =col_level 
-            old_cell =int(level[row_level][col_level])
-            for j in range(col_level - 1, -1, -1):
-              if self.is_blok(level, row_level, j):
-                break
-              else:
-                new_col = j
-            total_weight += abs(new_col - col_level)
-            level[row_level][col_level] = round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
-            if(self.on_gool(level,row_level,new_col,old_cell)):
-                level[row_level][new_col]=0.0
-            else:
-                level[row_level][new_col] = level[row_level][new_col]+int(old_cell)
-        # self.update_and_store_level(level)
-        return level
-    
-    def move_up(self, canvas):
-        level= copy.deepcopy(self.now_level)
-        move=self.Moving_stones(level)
-        Nrow_move = len(move)
-        total_weight = 0
-        for r in range(Nrow_move):
-            col_level=move[r][1]
-            row_level=move[r][0]
-            new_row = row_level
-            old_cell = int(level[row_level][col_level])
-            for i in range(row_level - 1, -1, -1):
-                if self.is_blok(level, i, col_level):
-                  break
-                else:
-                  new_row = i
-            total_weight += abs(row_level - new_row)
-            level[row_level][col_level] = round(level[row_level][col_level] - int(level[row_level][col_level]), 1)
-            if(self.on_gool(level,new_row,col_level,old_cell)):
-                level[new_row][col_level]=0.0
-            else:
-                level[new_row][col_level] =  level[new_row][col_level]+int(old_cell)
-        # self.update_and_store_level(level)
-        return level
-    
-    def move_down(self, canvas):
-        level = copy.deepcopy(self.now_level)
-        move=self.Moving_stones(level)
-        Nrow_move = len(move)
-        total_weight = 0
-        for r in range(Nrow_move):
-            col_level=move[r][1]
-            row_level=move[r][0]
-            rows = len(level)
-            new_row = row_level
-            old_cell = int(level[row_level][col_level])
-            for i in range(row_level + 1, rows):
-              if self.is_blok(level, i, col_level):
-                break
-              else:
-                new_row = i
-            total_weight += abs(row_level - new_row)
-            level[row_level][col_level] =round(level[row_level][col_level]-int(level[row_level][col_level]),1)
-            if(self.on_gool(level,new_row,col_level,old_cell)):
-                level[new_row][col_level]=0.0
-            else:
-                level[new_row][col_level] =  level[new_row][col_level]+int(old_cell)
-        # self.update_and_store_level(level)
-        return level
-    
-    def weight(self,canvas,old_weight):
-        levels=[]
-        next_moves=[]
-        moves=self.get_possible_moves()
-        for move in moves:
-            if move == "right":
-                next_level, weight = self.move_right(canvas) 
-            elif move == "left":
-                next_level, weight = self.move_left(canvas)
-            elif move == "up":
-                next_level, weight = self.move_up(canvas)
-            elif move == "down":
-                next_level, weight = self.move_down(canvas)
-            element_q=f"{move} {weight+ old_weight}"
-            next_moves.append(element_q)
-            levels.append((element_q, next_level))
+    # def is_deed(self ,level , row ,col):
         
-        return(next_moves,levels)
+    def direction(self,direction):
+        # print(direction)
+        if direction =='down':
+          new_obj,cost= self.move_down()
+        if direction =='up':
+            new_obj,cost= self.move_up()
+        if direction =='right':
+            new_obj,cost= self.move_right()
+        if direction =='left':
+            new_obj,cost= self.move_left()        
+        return(new_obj,cost)  
+     
+    def hirostic(self, level):
+        stones=self.Moving_stones(level)  
+        rows = len(level)
+        cols = len(level[0])
+        distans=0
+        for stone in stones:
+            s_row,s_col=stone
+            for row in range(rows):
+                for col in range(cols):
+                    if (round((level[row][col]) - int(level[row][col]), 1) * 10 == int(level[s_row][s_col])):
+                        distans+=abs(row-s_row)+ abs(col-s_col)
+        return( distans)
     
-    def make_move(self, canvas, list_path,visited, delay=500,i=0):
-            if i >= len(visited):
+    def path_f_cost(self,path):
+        g_cost=0
+        for level,cost in path:
+            g_cost+=cost
+        last_level=path[-1][0]
+        last_ob=state(last_level)
+        h_cost=last_ob.hirostic(last_level)
+        # print("h",h_cost)
+        f_cost=g_cost+h_cost
+        return f_cost
+    
+    def path_g_cost(self,path):
+        g_cost=0
+        for level,cost in path:
+            g_cost+=cost
+        return g_cost
+     
+    def make_move(self, canvas, list_path, delay=500,i=0):
+            if i >= len(list_path):
                 print("Completed drawing all states!")
                 return
             canvas.delete("all")
-            self.draw_Squares( visited[i],canvas)
-            for row in visited[i]:
-                print(row)
-            print("-" * 20)
-            canvas.after(delay, lambda: self.make_move(canvas, list_path, visited,delay,i + 1))
-    
-    def path_cost(path):
-        total_cost=0
-        for(move,cost) in path :
-            total_cost+=cost
-        return total_cost
-        
-    def sort(self,Pq):
-        sorted_list = []        
-        for sublist in Pq:
-            sum_value = sum(int(value) for direction, value in sublist)            
-            sorted_list.append((sum_value, sublist))        
-        for i in range(len(sorted_list)):
-            for j in range(i + 1, len(sorted_list)):
-                if sorted_list[i][0] > sorted_list[j][0]:
-                    sorted_list[i], sorted_list[j] = sorted_list[j], sorted_list[i]        
-        return [sublist for _, sublist in sorted_list]
-       
-    def UCS(self, canvas): 
-        visited = []
-        visited.append(copy.deepcopy(self.now_level)) 
-        Pq = [] 
-        path=[]
-        weight=0   
-        Pq_start,levels=self.weight(canvas,weight)
-        move_p=[]
-        for start in Pq_start:
-            move_start = start.split()[0]
-            move_weight = start.split()[1]
-            move_p = [(move_start, move_weight)]  
-            Pq.append(move_p.copy())
-        count=0
-        while Pq:
-            count+=1
-            print(count)
-            if not self.Moving_stones(self.now_level):
-                return(path, self.make_move(canvas, path,visited, 1000))
-            Pq = self.sort(Pq)           
-            pop=Pq.pop(0)
-            action, weight = pop[0]  
-            weight = int(weight)   
-            for move, level in levels:
-                if move.split()[0] ==action:
-                    next_level = level
-                    break
-            if next_level in visited:
-                continue
-            visited.append(copy.deepcopy(self.now_level))   
-            path.append(pop[0])
-            self.update_and_store_level(next_level) 
-            next_moves,levels=self.weight(canvas,weight)
-            print('pq b',Pq)
-            for next_move in next_moves:
-                new_path=path.copy()
-                new_path.append((next_move.split()[0],next_move.split()[1]))
-                Pq.append(new_path)
-            print('pq a',Pq)
-            print('-'*20)
-        return "not found solution",path
-
-    def dfs_recursive(self, canvas, paths=None, visited=None, list_paths=None):
-        print('1')
-        if paths is None:
-            paths = []
-        if visited is None:
-            visited = [copy.deepcopy(self.now_level)]
-        if list_paths is None:
-            list_paths = [copy.deepcopy(self.now_level)] 
-        print('2')
-        print(self.Moving_stones(self.now_level))         
-        if not self.Moving_stones(self.now_level):
-            return paths, self.make_move(canvas, list_paths, 1000)
-        print('3')
-        if not self.Moving_stones(self.now_level):
-            return paths, self.make_move(canvas, list_paths, 1000)
-        print('4')
-        next_moves = self.get_possible_moves()
-        grouped_moves = {"right": [], "left": [], "up": [], "down": []}        
-        for move in next_moves:
-            direction, row, col = move  # الآن يتم فك القيم الثلاثة بشكل صحيح
-            grouped_moves[direction].append((row, col))
-
-        print('5')
-        for direction, positions in grouped_moves.items():
-            if direction in paths: 
-                continue
+            canvas.after(delay, lambda: self.make_move(canvas, list_path,delay,i + 1))
  
-            if direction == "right":
-                next_level = self.move_right(canvas)
-            elif direction == "left":
-                next_level = self.move_left(canvas)
-            elif direction == "up":
-                next_level = self.move_up(canvas)
-            elif direction == "down":
-                next_level = self.move_down(canvas)
-            else:
-                continue
-            print(f"Current level type: {type(self.now_level)}")
-            if next_level in visited:
-                continue
+    def solve(self, canvas, algorithm="bfs"):
+        if algorithm.lower() == "bfs":
+           return( self.bfs(canvas))
+        elif algorithm.lower() == "dfs":
+            return( self.dfs(canvas))
+        elif algorithm=="UCS":
+            return( self.UCS(canvas))
+        elif algorithm=="A_star":
+            return(self.A_star(canvas))
+        else:
+            print("خوارزمية غير مدعومة")
             
-            paths.append(direction)
-            list_paths.append(copy.deepcopy(next_level))
-            visited.append(copy.deepcopy(next_level))
+    def bfs(self,canvas):
+        tracemalloc.start() 
+        start_time = time.time() 
+        queue = [[self.now_level]] 
+        visited = [] 
+        i=0           
+        while queue:
+            print(i)
+            i+=1
+            path=queue.pop(0)
+            level=path[-1]
+            if level in visited:
+                continue
+            visited.append(copy.deepcopy(level))
+            currunt_obj=state(level)        
+            if not self.Moving_stones(currunt_obj.now_level):
+                end_time = time.time() 
+                memory_used, _ = tracemalloc.get_traced_memory()
+                for n in path:
+                    self.print_level(n)
+                logging.info(
+                    f"Algorithm: BFS | Nodes Visited: {len(visited)} | Path Length: {len(path)} "
+                    f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+                )
+                
+                tracemalloc.stop()
+                return("done")
+            else: 
+                next_moves=currunt_obj.get_possible_moves(currunt_obj.now_level)
+                for move in next_moves:
+                    new_obj,_= currunt_obj.direction(move)
+                    new_path=path.copy()
+                    new_path.append(new_obj.now_level)
+                    queue.append(new_path)
+        end_time = time.time()
+        memory_used, _ = tracemalloc.get_traced_memory()
+        logging.info(
+            f"Algorithm: BFS | Nodes Visited: {len(visited)} | Path Length: {len(queue)} "
+            f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+        )
+        tracemalloc.stop()
+        return "not found solution"
+                   
+    def dfs(self,canvas):
+        tracemalloc.start() 
+        start_time = time.time() 
+        stack = [[self.now_level]] 
+        visited = []            
+        while stack:
+            path=stack.pop()
+            level=path[-1]
+            if level in visited:
+                continue
+            visited.append(copy.deepcopy(level))
+            currunt_obj=state(level)        
+            if not self.Moving_stones(currunt_obj.now_level):
+                end_time = time.time() 
+                memory_used, _ = tracemalloc.get_traced_memory()  
+                for n in path:
+                    self.print_level(n)
+                logging.info(
+                f"Algorithm: DFS | Nodes Visited: {len(visited)} | Path Length: {len(path)} "
+                f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+                )
+                tracemalloc.stop()
+                return("done")
+            else: 
+                next_moves=currunt_obj.get_possible_moves(currunt_obj.now_level)
+                for move in next_moves:
+                    new_obj,_= currunt_obj.direction(move)
+                    new_path=path.copy()
+                    new_path.append(new_obj.now_level)
+                    stack.append(new_path)
+        end_time = time.time()
+        memory_used, _ = tracemalloc.get_traced_memory()
+        logging.info(
+            f"Algorithm: DFS | Nodes Visited: {len(visited)} | Path Length: {len(stack)} "
+            f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+        )
+        tracemalloc.stop()
+        return "not found solution"
+    
+    def UCS(self, canvas):
+        tracemalloc.start() 
+        start_time = time.time() 
+        Pq = [[(self.now_level,0)]] 
+        visited = [] 
+        i=0 
+        while Pq:
+            Pq=sorted(Pq, key=lambda path_s:self.path_g_cost(path_s))
+            print(i)
+            i+=1
+            # for n in Pq:
+            #     for tu in n:
+            #         print('cost=', tu[1])
+            #         # self.print_level(tu[0])
+            #         # print('visited',len(visited))
+            #         # print('path',len(path))
+            #     print('*'*20)
+            path=Pq.pop(0)
+            level=path[-1][0]
+            self.cost=path[-1][1]
+            if level in visited:
+                continue 
+            visited.append(copy.deepcopy(level))
+            currunt_obj=state(level)
+            if not currunt_obj.Moving_stones(currunt_obj.now_level):
+                end_time = time.time() 
+                memory_used, _ = tracemalloc.get_traced_memory()  
+                for level,cost in path:
+                    self.print_level(level)
+                logging.info(
+                f"Algorithm: UCS | Nodes Visited: {len(visited)} | Path Length: {len(path)} "
+                f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+                )
+                tracemalloc.stop()
+                return "done"
+            else:  
+                next_moves=currunt_obj.get_possible_moves(currunt_obj.now_level)
+                for move in next_moves:
+                   new_obj,cost= currunt_obj.direction(move)
+                   new_path=path.copy()
+                   new_path.append((new_obj.now_level,cost))
+                   Pq.append(new_path)
+        end_time = time.time()
+        memory_used, _ = tracemalloc.get_traced_memory()
+        logging.info(
+            f"Algorithm: UCS | Nodes Visited: {len(visited)} | Path Length: {len(stack)} "
+            f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+        )
+        tracemalloc.stop()
+        return "not found solution"
             
-            self.update_and_store_level(next_level) 
-            for n in self.now_level:
-                print(n)
-            print('-'*20)           
-            result = self.dfs_recursive(canvas, paths, visited, next_level)
-            if result: 
-                return result
-            paths.pop()
-            list_paths.pop()
+    def A_star(self, canvas):
+        tracemalloc.start() 
+        start_time = time.time()  
+        Pq = [[(self.now_level,0)]] 
+        visited = [] 
+        i=0 
+        while Pq:
+            print(i)
+            Pq=sorted(Pq, key=lambda path_s:self.path_f_cost(path_s))
+            path=Pq.pop(0)
+            # for n in path:
+            #   self.print_level(n[0])
+            level=path[-1][0]
+            self.cost=path[-1][1]
+            if level in visited:
+                continue 
+            visited.append(copy.deepcopy(level))
+            currunt_obj=state(level)
+            if not currunt_obj.Moving_stones(currunt_obj.now_level):
+                end_time = time.time() 
+                memory_used, _ = tracemalloc.get_traced_memory()  
+                for level,cost in path:
+                    self.print_level(level)
+                logging.info(
+                f"Algorithm: A_star | Nodes Visited: {len(visited)} | Path Length: {len(path)} "
+                f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+                )
+                tracemalloc.stop()
+                return "done"
+            else:  
+                next_moves=currunt_obj.get_possible_moves(currunt_obj.now_level)
+                for move in next_moves:
+                   new_obj,cost= currunt_obj.direction(move)
+                   new_path=path.copy()
+                   new_path.append((new_obj.now_level,cost))
+                   Pq.append(new_path)
+                # for n in path: 
+                #     print('cost=', n[1])
+                #     self.print_level(n[0])
+                #     # print('visited',len(visited))
+                #     # print('path',len(path))
+                # print('*'*20)
+            i+=1
+        end_time = time.time()
+        memory_used, _ = tracemalloc.get_traced_memory()
+        logging.info(
+            f"Algorithm: A_star | Nodes Visited: {len(visited)} | Path Length: {len(stack)} "
+            f"| Time: {end_time - start_time:.4f}s | Memory: {memory_used / 1024:.2f} KB"
+        )
+        tracemalloc.stop()
+        return "not found solution"
         
-        return None
+    # def hill_climbing(self,starting_point, step_size, max_iterations):
+    #     now_object=self.now_level
+    #     current_hirostic=0
+    #     while :
+    #     moves = self.get_possible_moves(now_object)
+    #     for next in moves:
+    #        new_obj,_ = self.direction(next)
+    #        next_hirostic=self.hirostic(new_obj.now_level)
+    #        if next_hirostic > current_hirostic:
+    #             current_object = state(now_object)
+    #             current_hirostic = next_hirostic
+
+    #     for _ in range(max_iterations):
+    #         neighbors = [current_point + step_size, current_point - step_size]            
+    #         next_point = max(neighbors, key=objective_function)
+    #         next_value = objective_function(next_point)
+            
+    #         if next_value > current_value:
+    #             current_point = next_point
+    #             current_value = next_value
+    #         else:
+    #             break  
+
+    #     return current_point, current_value
+                        
+
+         
